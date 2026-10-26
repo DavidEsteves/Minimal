@@ -1,0 +1,13 @@
+<SyntaxDefinition name="Bash" extensions=".sh;.bash;.zsh" xmlns="http://icsharpcode.net/sharpdevelop/syntaxdefinition/2008">
+  <Color name="Comment" foreground="#587949"/>
+  <Color name="String" foreground="#A14427"/>
+  <Color name="Keyword" foreground="#234EAD" fontWeight="bold"/>
+  <Color name="Variable" foreground="#77549B"/>
+  <RuleSet>
+    <Span color="Comment" begin="\#"/>
+    <Span color="String" begin="&quot;" end="&quot;"><RuleSet><Span begin="\\" end="."/></RuleSet></Span>
+    <Span color="String" begin="'" end="'"/>
+    <Rule color="Variable">\$[\w?#!@*]+|\$\{[^}]+\}</Rule>
+    <Keywords color="Keyword"><Word>if</Word><Word>then</Word><Word>else</Word><Word>elif</Word><Word>fi</Word><Word>for</Word><Word>in</Word><Word>do</Word><Word>done</Word><Word>while</Word><Word>until</Word><Word>case</Word><Word>esac</Word><Word>function</Word><Word>return</Word><Word>export</Word><Word>local</Word><Word>readonly</Word><Word>echo</Word><Word>printf</Word><Word>read</Word><Word>source</Word><Word>set</Word><Word>unset</Word><Word>exit</Word></Keywords>
+  </RuleSet>
+</SyntaxDefinition>

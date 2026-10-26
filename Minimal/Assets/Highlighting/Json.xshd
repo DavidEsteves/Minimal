@@ -1,0 +1,13 @@
+<SyntaxDefinition name="JSON" extensions=".json;.jsonc" xmlns="http://icsharpcode.net/sharpdevelop/syntaxdefinition/2008">
+  <Color name="String" foreground="#A14427"/>
+  <Color name="Keyword" foreground="#234EAD"/>
+  <Color name="Number" foreground="#77549B"/>
+  <Color name="Comment" foreground="#587949"/>
+  <RuleSet>
+    <Span color="Comment" begin="//"/>
+    <Span color="Comment" multiline="true" begin="/\*" end="\*/"/>
+    <Span color="String" begin="&quot;" end="&quot;"><RuleSet><Span begin="\\" end="."/></RuleSet></Span>
+    <Keywords color="Keyword"><Word>true</Word><Word>false</Word><Word>null</Word></Keywords>
+    <Rule color="Number">-?\b\d+(\.\d+)?([eE][+-]?\d+)?\b</Rule>
+  </RuleSet>
+</SyntaxDefinition>

@@ -1,0 +1,15 @@
+<SyntaxDefinition name="TypeScript" extensions=".ts;.tsx;.jsx;.mjs;.cjs" xmlns="http://icsharpcode.net/sharpdevelop/syntaxdefinition/2008">
+  <Color name="Comment" foreground="#587949" fontStyle="italic"/>
+  <Color name="String" foreground="#A14427"/>
+  <Color name="Keyword" foreground="#234EAD" fontWeight="bold"/>
+  <Color name="Number" foreground="#7244A1"/>
+  <RuleSet>
+    <Span color="Comment" begin="//"/>
+    <Span color="Comment" multiline="true" begin="/\*" end="\*/"/>
+    <Span color="String" begin="&quot;" end="&quot;"><RuleSet><Span begin="\\" end="."/></RuleSet></Span>
+    <Span color="String" begin="'" end="'"><RuleSet><Span begin="\\" end="."/></RuleSet></Span>
+    <Span color="String" multiline="true" begin="`" end="`"><RuleSet><Span begin="\\" end="."/></RuleSet></Span>
+    <Keywords color="Keyword"><Word>const</Word><Word>let</Word><Word>var</Word><Word>function</Word><Word>return</Word><Word>class</Word><Word>extends</Word><Word>implements</Word><Word>interface</Word><Word>type</Word><Word>enum</Word><Word>namespace</Word><Word>import</Word><Word>export</Word><Word>from</Word><Word>default</Word><Word>new</Word><Word>this</Word><Word>super</Word><Word>async</Word><Word>await</Word><Word>if</Word><Word>else</Word><Word>for</Word><Word>while</Word><Word>do</Word><Word>switch</Word><Word>case</Word><Word>break</Word><Word>continue</Word><Word>try</Word><Word>catch</Word><Word>finally</Word><Word>throw</Word><Word>typeof</Word><Word>instanceof</Word><Word>in</Word><Word>of</Word><Word>as</Word><Word>is</Word><Word>keyof</Word><Word>readonly</Word><Word>public</Word><Word>private</Word><Word>protected</Word><Word>static</Word><Word>abstract</Word><Word>declare</Word><Word>string</Word><Word>number</Word><Word>boolean</Word><Word>unknown</Word><Word>any</Word><Word>never</Word><Word>void</Word><Word>null</Word><Word>undefined</Word><Word>true</Word><Word>false</Word></Keywords>
+    <Rule color="Number">\b(0x[\da-fA-F]+|\d+(\.\d+)?([eE][+-]?\d+)?)\b</Rule>
+  </RuleSet>
+</SyntaxDefinition>
