@@ -44,6 +44,8 @@ public partial class MainWindow : Window
         Editor.Options.EnableEmailHyperlinks = false;
         Editor.Options.ConvertTabsToSpaces = false;
         Editor.Options.IndentationSize = 4;
+        InitializeStructure();
+        InitializeSearch();
         Editor.TextArea.Caret.PositionChanged += (_, _) => UpdateStatus();
         Editor.TextChanged += (_, _) => UpdateStatus();
         model.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(model.Active)) ActivateDocument(); };
@@ -54,6 +56,11 @@ public partial class MainWindow : Window
     }
 
     private void SystemMenuClick(object sender, RoutedEventArgs e) => SystemCommands.ShowSystemMenu(this, PointToScreen(new Point(0, 36)));
+    private void AboutClick(object sender, RoutedEventArgs e)
+    {
+        new AboutDialog { Owner = this, Icon = Icon }.ShowDialog();
+        if (model.Active?.IsPreview != true) Editor.Focus();
+    }
     private void MinimizeClick(object sender, RoutedEventArgs e) => SystemCommands.MinimizeWindow(this);
     private void MaximizeClick(object sender, RoutedEventArgs e)
     {
@@ -113,8 +120,10 @@ public partial class MainWindow : Window
     private void ActivateDocument()
     {
         RememberPosition();
+        DetachFolding();
         if (displayed is not null) displayed.PropertyChanged -= DocumentChanged;
         displayed = model.Active;
+        sessionDirty = true;
         if (displayed is null) { Editor.Document = new(); return; }
         displayed.PropertyChanged += DocumentChanged;
         Editor.Document = displayed.Buffer;
@@ -123,6 +132,7 @@ public partial class MainWindow : Window
         Editor.ScrollToHorizontalOffset(displayed.HorizontalOffset);
         ApplySyntax();
         UpdateStatus();
+        ScheduleSearch();
         Tabs.ScrollIntoView(displayed);
         _ = RefreshPreviewAsync();
         if (!displayed.IsPreview) Editor.Focus();
@@ -130,6 +140,7 @@ public partial class MainWindow : Window
 
     private void DocumentChanged(object? sender, PropertyChangedEventArgs e)
     {
+        sessionDirty = true;
         if (e.PropertyName == nameof(DocumentViewModel.IsPreview)) _ = RefreshPreviewAsync();
         if (e.PropertyName is nameof(DocumentViewModel.Title) or nameof(DocumentViewModel.Encoding)) UpdateStatus();
         if (e.PropertyName is nameof(DocumentViewModel.FilePath) or nameof(DocumentViewModel.IsLarge)) ApplySyntax();
@@ -139,8 +150,11 @@ public partial class MainWindow : Window
 
     private void ApplySyntax()
     {
+        ScheduleStructure();
+        ConfigureFolding();
+        ConfigureIndentation();
         Editor.SyntaxHighlighting = displayed?.IsLarge == false ? syntax.ForDocument(displayed.FilePath, displayed.Language, dark) : null;
-        Editor.ShowLineNumbers = false;
+        Editor.ShowLineNumbers = editorSettings.ShowLineNumbers;
         if (displayed is not null)
         {
             var name = syntax.LanguageName(displayed.FilePath, displayed.Language);
@@ -152,6 +166,7 @@ public partial class MainWindow : Window
     private void UpdateStatus()
     {
         var doc = model.Active;
+        CharacterStatus.Text = doc is null ? "" : $"{doc.Buffer.TextLength:N0} character{(doc.Buffer.TextLength == 1 ? "" : "s")}";
         if (doc is null) return;
         Title = $"{doc.Title} — Minimal";
         PreviewMenu.IsEnabled = doc.IsMarkdown;
@@ -215,7 +230,9 @@ public partial class MainWindow : Window
     {
         if (!await ConfirmCloseAsync(doc)) return;
         model.Remove(doc);
+        foldedTabs.Remove(doc);
         if (model.Documents.Count == 0) model.NewDocument();
+        await SaveSessionNowAsync(forgetPrevious: true);
     }
 
     private async Task RunBusyAsync(Func<Task> action)
@@ -342,13 +359,19 @@ public partial class MainWindow : Window
         if (busy) return;
         await RunBusyAsync(async () =>
         {
-            foreach (var doc in model.Documents.ToArray()) if (!await ConfirmCloseAsync(doc)) return;
-            closing = true;
+            closing = await PrepareSessionExitAsync();
         });
         if (closing)
         {
             SystemEvents.UserPreferenceChanged -= OnSystemThemeChanged;
             preview?.Dispose();
+            structureTimer.Stop();
+            structureCancellation?.Cancel();
+            searchTimer.Stop();
+            searchCancellation?.Cancel();
+            DetachFolding();
+            Editor.TextArea.TextView.BackgroundRenderers.Remove(brackets);
+            sessions?.Dispose();
             // A discarded or clean document can complete synchronously. Let this
             // Closing event finish before issuing the final Close request.
             _ = Dispatcher.BeginInvoke(new Action(Close));
@@ -359,6 +382,11 @@ public partial class MainWindow : Window
     {
         if (busy) { e.Handled = true; return; }
         var modifiers = Keyboard.Modifiers;
+        var chord = formatChord.Process(e.Key, modifiers);
+        if (chord == ChordResult.Pending) { e.Handled = true; PositionStatus.Text = "Ctrl+K pressed. Waiting for Ctrl+D…"; return; }
+        if (chord == ChordResult.Complete) { e.Handled = true; UpdateStatus(); await FormatDocumentAsync(); return; }
+        if (chord == ChordResult.Cancelled) UpdateStatus();
+        if (e.Key is Key.LeftCtrl or Key.RightCtrl or Key.LeftShift or Key.RightShift or Key.LeftAlt or Key.RightAlt) return;
         bool ctrl = (modifiers & ModifierKeys.Control) != 0;
         bool shift = (modifiers & ModifierKeys.Shift) != 0;
         if (!ctrl)
@@ -377,6 +405,9 @@ public partial class MainWindow : Window
             case Key.Tab: model.NextTab(shift ? -1 : 1); break;
             case Key.F: ShowFind(false); break;
             case Key.H: ShowFind(true); break;
+            case Key.G: GoToLine(); break;
+            case Key.OemOpenBrackets when shift: FoldCurrent(true); break;
+            case Key.OemCloseBrackets when shift: FoldCurrent(false); break;
             case Key.V when shift: await TogglePreviewAsync(); break;
             case Key.Z when Keyboard.FocusedElement is not TextBox && model.Active?.IsPreview == false:
                 if (shift && Editor.CanRedo) Editor.Redo(); else if (!shift && Editor.CanUndo) Editor.Undo(); break;
@@ -404,31 +435,9 @@ public partial class MainWindow : Window
         FindBar.Visibility = Visibility.Visible;
         ReplaceBar.Visibility = replace ? Visibility.Visible : Visibility.Collapsed;
         if (Editor.SelectionLength > 0 && Editor.SelectionLength < 256) FindText.Text = Editor.SelectedText;
-        FindText.Focus(); FindText.SelectAll(); FindMessage.Text = "";
+        FindText.Focus(); FindText.SelectAll(); ScheduleSearch();
     }
-    private void HideFind() { FindBar.Visibility = Visibility.Collapsed; Editor.Focus(); }
-    private StringComparison FindComparison => MatchCase.IsChecked == true ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
-    private void Find(bool backwards = false)
-    {
-        string term = FindText.Text;
-        if (term.Length == 0) return;
-        var text = Editor.Document.Text;
-        int found;
-        if (backwards)
-        {
-            int start = Math.Min(Editor.SelectionStart - 1, text.Length - 1);
-            found = start < 0 ? -1 : text.LastIndexOf(term, start, FindComparison);
-            if (found < 0) found = text.LastIndexOf(term, FindComparison);
-        }
-        else
-        {
-            int start = Math.Min(Editor.SelectionStart + Math.Max(Editor.SelectionLength, 0), text.Length);
-            found = text.IndexOf(term, start, FindComparison);
-            if (found < 0) found = text.IndexOf(term, FindComparison);
-        }
-        FindMessage.Text = found < 0 ? "No matches" : "";
-        if (found >= 0) { Editor.Select(found, term.Length); Editor.TextArea.Caret.BringCaretToView(); }
-    }
+    private void HideFind() { FindBar.Visibility = Visibility.Collapsed; ScheduleSearch(); Editor.Focus(); }
     private static Encoding EncodingFor(string tag) => tag switch { "utf8bom" => new UTF8Encoding(true, true), "utf16le" => new UnicodeEncoding(false, true, true), "utf16be" => new UnicodeEncoding(true, true, true), "1252" => FileService.LegacyEncoding, _ => new UTF8Encoding(false, true) };
     private void NewClick(object sender, RoutedEventArgs e) => model.NewDocument();
     private async void OpenClick(object sender, RoutedEventArgs e) => await OpenDialogAsync();
@@ -439,6 +448,16 @@ public partial class MainWindow : Window
     private void ExitClick(object sender, RoutedEventArgs e) => Close();
     private async void PreviewClick(object sender, RoutedEventArgs e) => await TogglePreviewAsync();
     private void WrapClick(object sender, RoutedEventArgs e) => Editor.WordWrap = WrapMenu.IsChecked;
+    private async void LineNumbersClick(object sender, RoutedEventArgs e)
+    {
+        await RunBusyAsync(async () =>
+        {
+            var settings = editorSettings with { ShowLineNumbers = LineNumbersMenu.IsChecked };
+            await preferences.SaveAsync(settings);
+            ApplyEditorSettings(settings);
+        });
+        LineNumbersMenu.IsChecked = editorSettings.ShowLineNumbers;
+    }
     private async void FontSettingsClick(object sender, RoutedEventArgs e)
     {
         await RunBusyAsync(async () =>
@@ -460,6 +479,13 @@ public partial class MainWindow : Window
         double previousHeight = view.DefaultLineHeight;
         double previousOffset = Editor.VerticalOffset;
         editorSettings = settings.Normalize();
+        Editor.ShowLineNumbers = editorSettings.ShowLineNumbers;
+        LineNumbersMenu.IsChecked = editorSettings.ShowLineNumbers;
+        FoldingMenu.IsChecked = editorSettings.CodeFolding;
+        RestoreSessionMenu.IsChecked = editorSettings.RestorePreviousSession;
+        Editor.Options.ConvertTabsToSpaces = editorSettings.ConvertTabsToSpaces;
+        Editor.Options.IndentationSize = editorSettings.IndentationSize;
+        ConfigureIndentation();
         Editor.FontFamily = EditorTypography.CreateFont(editorSettings);
         Editor.FontSize = editorSettings.FontSize;
         var applied = editorSettings;
@@ -518,27 +544,6 @@ public partial class MainWindow : Window
     private void FindNextClick(object sender, RoutedEventArgs e) => Find();
     private void FindPreviousClick(object sender, RoutedEventArgs e) => Find(true);
     private void FindKeyDown(object sender, KeyEventArgs e) { if (e.Key == Key.Enter) { Find(Keyboard.Modifiers.HasFlag(ModifierKeys.Shift)); e.Handled = true; } }
-    private void ReplaceOneClick(object sender, RoutedEventArgs e)
-    {
-        if (FindText.Text.Length == 0) return;
-        if (Editor.SelectedText.Equals(FindText.Text, FindComparison)) Editor.Document.Replace(Editor.SelectionStart, Editor.SelectionLength, ReplaceText.Text);
-        Find();
-    }
-    private void ReplaceAllClick(object sender, RoutedEventArgs e)
-    {
-        string term = FindText.Text;
-        if (term.Length == 0) return;
-        var text = Editor.Document.Text;
-        var matches = new List<int>();
-        for (int offset = 0; offset <= text.Length - term.Length;)
-        {
-            int index = text.IndexOf(term, offset, FindComparison);
-            if (index < 0) break;
-            matches.Add(index); offset = index + term.Length;
-        }
-        using (Editor.Document.RunUpdate()) for (int i = matches.Count - 1; i >= 0; i--) Editor.Document.Replace(matches[i], term.Length, ReplaceText.Text);
-        FindMessage.Text = $"{matches.Count} replaced";
-    }
     private void OnDragOver(object sender, DragEventArgs e) { e.Effects = e.Data.GetDataPresent(DataFormats.FileDrop) ? DragDropEffects.Copy : DragDropEffects.None; e.Handled = true; }
     private async void OnDrop(object sender, DragEventArgs e) { if (e.Data.GetData(DataFormats.FileDrop) is string[] paths) { e.Handled = true; await OpenPathsAsync(paths); } }
 }

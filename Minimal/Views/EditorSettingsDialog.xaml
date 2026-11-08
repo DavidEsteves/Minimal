@@ -28,6 +28,11 @@
           </StackPanel>
         </Grid>
         <TextBlock Text="1× uses the font’s normal line height." Foreground="{DynamicResource CaptionInk}" FontSize="12" Margin="0,8,0,12"/>
+        <WrapPanel Margin="0,0,0,14">
+          <CheckBox x:Name="SpacesChoice" Style="{StaticResource SettingsCheckBox}" Content="Insert _spaces" VerticalAlignment="Center" Margin="0,0,18,0" Click="IndentationChanged"/>
+          <Label Content="_Indent size" Target="{Binding ElementName=IndentPicker}" Foreground="{DynamicResource Ink}"/>
+          <ComboBox x:Name="IndentPicker" Width="70" Style="{StaticResource SettingsComboBox}" SelectionChanged="ChoicesChanged" AutomationProperties.Name="Indentation size"/>
+        </WrapPanel>
         <Border BorderBrush="{DynamicResource Rule}" BorderThickness="1" CornerRadius="4" Padding="4">
           <ae:TextEditor x:Name="SampleEditor" Height="150" IsReadOnly="True" Background="{DynamicResource Surface}" Foreground="{DynamicResource Ink}" Padding="8" BorderThickness="0" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Font preview">
             <ae:TextEditor.Resources><SolidColorBrush x:Key="{x:Static SystemColors.ControlBrushKey}" Color="{DynamicResource ScrollTrackColor}"/></ae:TextEditor.Resources>

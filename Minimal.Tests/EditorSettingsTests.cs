@@ -18,10 +18,10 @@ public sealed class EditorSettingsTests
         {
             var service = new EditorSettingsService(Path.Combine(directory, "preferences.json"));
             Assert.Equal(new EditorSettings(), service.Load());
-            var settings = new EditorSettings { FontFamily = "Consolas", FontSize = 20, LineSpacing = 1.5 };
+            var settings = new EditorSettings { FontFamily = "Consolas", FontSize = 20, LineSpacing = 1.5, ShowLineNumbers = true };
             await service.SaveAsync(settings);
             Assert.Equal(settings, service.Load());
-            var updated = settings with { FontFamily = "Segoe UI", LineSpacing = 2 };
+            var updated = settings with { FontFamily = "Segoe UI", LineSpacing = 2, ShowLineNumbers = false };
             await service.SaveAsync(updated);
             Assert.Equal(updated, service.Load());
             Assert.Single(Directory.GetFiles(directory));

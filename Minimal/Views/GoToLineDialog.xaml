@@ -1,0 +1,15 @@
+<Window x:Class="Minimal.Views.GoToLineDialog" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Go to line" Width="380" SizeToContent="Height" ResizeMode="NoResize" WindowStyle="None" AllowsTransparency="True" Background="Transparent" WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
+  <Border Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Rule}" BorderThickness="1" CornerRadius="8" Margin="12" Padding="22">
+    <StackPanel>
+      <TextBlock Text="Go to line" Foreground="{DynamicResource Ink}" FontSize="19" FontWeight="SemiBold" Margin="0,0,0,14"/>
+      <Label x:Name="RangeLabel" Target="{Binding ElementName=LineText}" Padding="0,0,0,6" Foreground="{DynamicResource Ink}"/>
+      <TextBox x:Name="LineText" TextChanged="LineChanged" AutomationProperties.Name="Line number"/>
+      <TextBlock x:Name="Validation" Foreground="#D66565" Margin="0,6,0,14"/>
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+        <Button x:Name="GoButton" Content="_Go" Style="{StaticResource SettingsButton}" IsDefault="True" Click="GoClick"/>
+        <Button Content="_Cancel" Style="{StaticResource SettingsButton}" IsCancel="True"/>
+      </StackPanel>
+    </StackPanel>
+  </Border>
+</Window>

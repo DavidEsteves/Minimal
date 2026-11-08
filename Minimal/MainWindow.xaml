@@ -123,6 +123,8 @@
         <Separator/>
         <MenuItem Header="_Find…" InputGestureText="Ctrl+F" Click="FindClick"/>
         <MenuItem Header="_Replace…" InputGestureText="Ctrl+H" Click="ReplaceClick"/>
+        <MenuItem Header="_Go to line…" InputGestureText="Ctrl+G" Click="GoToLineClick"/>
+        <MenuItem x:Name="FormatDocumentMenu" Header="Format _document" InputGestureText="Ctrl+K, Ctrl+D" Click="FormatDocumentClick" ToolTip="Format JSON or XML using the configured indentation."/>
       </MenuItem>
       <MenuItem x:Name="SelectionMenu" Header="_Selection">
         <MenuItem Header="Select _all" InputGestureText="Ctrl+A" Click="SelectAllClick"/>
@@ -131,15 +133,23 @@
       <MenuItem Header="_View">
         <MenuItem x:Name="PreviewMenu" Header="Markdown _preview" InputGestureText="Ctrl+Shift+V" Click="PreviewClick"/>
         <MenuItem x:Name="WrapMenu" Header="_Word wrap" IsCheckable="True" Click="WrapClick"/>
+        <MenuItem x:Name="LineNumbersMenu" Header="_Line numbers" IsCheckable="True" Click="LineNumbersClick"/>
+        <MenuItem x:Name="FoldingMenu" Header="_Code folding" IsCheckable="True" IsChecked="True" Click="FoldingClick"/>
         <Separator/>
         <MenuItem Header="_Font and line spacing…" Click="FontSettingsClick"/>
       </MenuItem>
       <MenuItem Header="···" AutomationProperties.Name="More" ToolTip="More options">
+        <MenuItem Header="Settings">
+          <MenuItem Header="Font, spacing and indentation…" Click="FontSettingsClick"/>
+          <MenuItem x:Name="RestoreSessionMenu" Header="Restore previous session" IsCheckable="True" IsChecked="True" Click="RestoreSessionClick"/>
+        </MenuItem>
         <MenuItem Header="Theme">
           <MenuItem Header="System" Tag="System" Click="ThemeClick"/>
           <MenuItem Header="Light" Tag="Light" Click="ThemeClick"/>
           <MenuItem Header="Dark" Tag="Dark" Click="ThemeClick"/>
         </MenuItem>
+        <Separator/>
+        <MenuItem Header="_About Minimal…" Click="AboutClick"/>
       </MenuItem>
       </Menu>
       <TextBlock Grid.Column="2" Text="{Binding Title, RelativeSource={RelativeSource AncestorType=Window}}" Foreground="{DynamicResource CaptionInk}" FontSize="12" TextTrimming="CharacterEllipsis" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="20,0" IsHitTestVisible="False"/>
@@ -165,15 +175,27 @@
       </DockPanel>
     </Border>
     <Border x:Name="FindBar" DockPanel.Dock="Top" Visibility="Collapsed" Background="{DynamicResource Chrome}" BorderBrush="{DynamicResource Rule}" BorderThickness="0,0,0,1" Padding="12,8">
+      <Border.Resources>
+        <Style TargetType="Button" BasedOn="{StaticResource SettingsButton}"><Setter Property="MinWidth" Value="0"/><Setter Property="Padding" Value="10,4"/><Setter Property="Margin" Value="3,0"/></Style>
+        <Style TargetType="CheckBox" BasedOn="{StaticResource SettingsCheckBox}"/>
+      </Border.Resources>
       <StackPanel>
         <WrapPanel VerticalAlignment="Center">
-          <TextBox x:Name="FindText" Width="220" ToolTip="Find text" KeyDown="FindKeyDown"/>
+          <TextBox x:Name="FindText" Width="220" ToolTip="Find text" KeyDown="FindKeyDown" TextChanged="FindQueryChanged" AutomationProperties.Name="Find text"/>
           <Button Content="Previous" Click="FindPreviousClick"/>
           <Button Content="Next" Click="FindNextClick"/>
-          <CheckBox x:Name="MatchCase" Content="Match case" Margin="10,0" VerticalAlignment="Center"/>
+          <CheckBox x:Name="MatchCase" Content="Match _case" Margin="10,0" VerticalAlignment="Center" Click="FindOptionsChanged"/>
+          <CheckBox x:Name="WholeWord" Content="Whole _word" Margin="4,0" VerticalAlignment="Center" Click="FindOptionsChanged"/>
+          <CheckBox x:Name="UseRegex" Content="_Regex" Margin="8,0" VerticalAlignment="Center" Click="FindOptionsChanged"/>
           <Button Style="{StaticResource IconButton}" Content="×" FontSize="15" Click="HideFindClick" ToolTip="Close find (Esc)"/>
-          <TextBlock x:Name="FindMessage" VerticalAlignment="Center" Margin="8,0"/>
+          <TextBlock x:Name="FindMessage" Foreground="{DynamicResource Ink}" VerticalAlignment="Center" Margin="8,0" TextWrapping="Wrap" MaxWidth="300"/>
         </WrapPanel>
+        <ListBox x:Name="FindResults" MaxHeight="140" Margin="0,6,0,0" Background="{DynamicResource Surface}" Foreground="{DynamicResource Ink}" BorderThickness="0" SelectionChanged="FindResultSelected" KeyDown="FindResultsKeyDown" AutomationProperties.Name="Search results" ScrollViewer.HorizontalScrollBarVisibility="Disabled" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">
+          <ListBox.ItemTemplate><DataTemplate><DockPanel Margin="4,2">
+            <TextBlock DockPanel.Dock="Left" Text="{Binding Location}" MinWidth="76" Foreground="{DynamicResource CaptionInk}"/>
+            <TextBlock Text="{Binding Preview}" TextTrimming="CharacterEllipsis"/>
+          </DockPanel></DataTemplate></ListBox.ItemTemplate>
+        </ListBox>
         <WrapPanel x:Name="ReplaceBar" Visibility="Collapsed" Margin="0,6,0,0">
           <TextBox x:Name="ReplaceText" Width="220" ToolTip="Replacement text"/>
           <Button Content="Replace" Click="ReplaceOneClick"/>
@@ -188,11 +210,12 @@
           <MenuItem x:Name="LanguageMenu" Header="Plain text ▾" AutomationProperties.Name="Syntax highlighting language" SubmenuOpened="LanguageMenuOpened"/>
         </Menu>
         <TextBlock x:Name="FormatStatus" DockPanel.Dock="Right" Foreground="{DynamicResource Ink}" VerticalAlignment="Center"/>
-        <TextBlock x:Name="PositionStatus" Foreground="{DynamicResource Ink}" VerticalAlignment="Center"/>
+        <TextBlock x:Name="PositionStatus" DockPanel.Dock="Left" Foreground="{DynamicResource Ink}" VerticalAlignment="Center"/>
+        <TextBlock x:Name="CharacterStatus" Foreground="{DynamicResource CaptionInk}" VerticalAlignment="Center" Margin="18,0,8,0" TextTrimming="CharacterEllipsis" ToolTip="Total text length, including spaces and line breaks." AutomationProperties.Name="Character count"/>
       </DockPanel>
     </Border>
     <Grid>
-      <ae:TextEditor x:Name="Editor" FontFamily="Cascadia Mono, Consolas" FontSize="15" Padding="16,12" Background="{DynamicResource Surface}" Foreground="{DynamicResource Ink}" LineNumbersForeground="{DynamicResource Ink}" BorderThickness="0" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+      <ae:TextEditor x:Name="Editor" FontFamily="Cascadia Mono, Consolas" FontSize="15" Padding="16,12" Background="{DynamicResource Surface}" Foreground="{DynamicResource Ink}" LineNumbersForeground="{DynamicResource CaptionInk}" BorderThickness="0" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
         <ae:TextEditor.Resources>
           <SolidColorBrush x:Key="{x:Static SystemColors.ControlBrushKey}" Color="{DynamicResource ScrollTrackColor}"/>
         </ae:TextEditor.Resources>

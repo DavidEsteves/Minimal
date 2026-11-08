@@ -37,10 +37,11 @@
       </Border>
       <StackPanel Margin="24,20,24,24">
         <TextBlock x:Name="DocumentName" FontSize="19" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" TextWrapping="Wrap"/>
-        <TextBlock Text="Your changes will be lost if you don’t save them." Foreground="{DynamicResource CaptionInk}" TextWrapping="Wrap" Margin="0,12,0,26"/>
+        <TextBlock x:Name="Explanation" Text="Your changes will be lost if you don’t save them." Foreground="{DynamicResource CaptionInk}" TextWrapping="Wrap" Margin="0,12,0,26"/>
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
           <Button x:Name="SaveButton" Content="_Save" IsDefault="True" Background="#0F6CBD" Foreground="White" BorderBrush="#0F6CBD" Click="SaveClick"/>
           <Button Content="_Don't save" Click="DiscardClick"/>
+          <Button x:Name="KeepButton" Content="_Keep for next time" Visibility="Collapsed" Click="KeepClick"/>
           <Button Content="_Cancel" IsCancel="True"/>
         </StackPanel>
       </StackPanel>

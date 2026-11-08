@@ -10,6 +10,6 @@ public partial class App : Application
         var window = new MainWindow();
         MainWindow = window;
         window.Show();
-        await window.OpenPathsAsync(e.Args);
+        await window.InitializeAsync(e.Args);
     }
 }

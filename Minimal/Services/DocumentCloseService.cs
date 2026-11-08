@@ -2,7 +2,7 @@ using Minimal.ViewModels;
 
 namespace Minimal.Services;
 
-public enum SaveChangesChoice { Cancel, Save, Discard }
+public enum SaveChangesChoice { Cancel, Save, Discard, KeepForSession }
 
 public static class DocumentCloseService
 {

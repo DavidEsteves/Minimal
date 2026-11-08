@@ -8,6 +8,15 @@ namespace Minimal.Tests;
 public sealed class DocumentTests
 {
     [Fact]
+    public void ClosingActiveTabSelectsItsNeighborEvenWhenTheBoundSelectorClearsSelection()
+    {
+        var model = new MainViewModel();
+        var first = model.NewDocument(); var second = model.NewDocument();
+        model.Documents.CollectionChanged += (_, _) => model.Active = null;
+        model.Remove(second);
+        Assert.Same(first, model.Active);
+    }
+    [Fact]
     public void LanguageSelectionIsPerTabAndDoesNotModifyTheDocument()
     {
         var model = new MainViewModel();

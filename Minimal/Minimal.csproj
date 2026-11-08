@@ -7,15 +7,32 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\Minimal.ico</ApplicationIcon>
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <Product>Minimal</Product>
+    <Description>A lightweight native Windows text editor with offline Markdown preview.</Description>
+    <Authors>David Esteves</Authors>
+    <RepositoryUrl>https://github.com/DavidEsteves/Minimal</RepositoryUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <AvalonEditVersion>6.3.1.120</AvalonEditVersion>
+    <MarkdigVersion>1.4.2</MarkdigVersion>
+    <WebView2Version>1.0.4314.35</WebView2Version>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="AvalonEdit" Version="6.3.1.120" />
-    <PackageReference Include="Markdig" Version="1.4.2" />
-    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4314.35" />
+    <PackageReference Include="AvalonEdit" Version="$(AvalonEditVersion)" />
+    <PackageReference Include="Markdig" Version="$(MarkdigVersion)" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="$(WebView2Version)" />
+    <AssemblyMetadata Include="DependencyVersion.AvalonEdit" Value="$(AvalonEditVersion)" />
+    <AssemblyMetadata Include="DependencyVersion.Markdig" Value="$(MarkdigVersion)" />
+    <AssemblyMetadata Include="DependencyVersion.WebView2" Value="$(WebView2Version)" />
     <EmbeddedResource Include="Assets\markdown.css" />
     <EmbeddedResource Include="Assets\Highlighting\*.xshd" />
+    <EmbeddedResource Include="Assets\Licenses\*.txt" />
     <Resource Include="Assets\Minimal.ico" />
     <None Include="..\THIRD-PARTY-NOTICES.md" Link="THIRD-PARTY-NOTICES.md" CopyToPublishDirectory="PreserveNewest" />
-    <None Update="Assets\Licenses\*.txt" CopyToPublishDirectory="PreserveNewest" TargetPath="Licenses\%(Filename)%(Extension)" />
+    <None Include="..\LICENSE" Link="LICENSE" CopyToPublishDirectory="PreserveNewest" />
+    <None Remove="Assets\Licenses\*.txt" />
+    <None Include="Assets\Licenses\*.txt" CopyToPublishDirectory="PreserveNewest" TargetPath="Licenses\%(Filename)%(Extension)" />
   </ItemGroup>
 </Project>

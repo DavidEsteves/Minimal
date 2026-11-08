@@ -1,0 +1,30 @@
+name: Build and test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Test Release build
+        run: dotnet test Minimal.sln -c Release -p:TreatWarningsAsErrors=true
+      - name: Build portable release package
+        shell: pwsh
+        run: ./tools/Package-Release.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Minimal-win-x64
+          path: |
+            artifacts/release/*.zip
+            artifacts/release/SHA256SUMS.txt

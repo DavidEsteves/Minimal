@@ -14,6 +14,7 @@ public sealed class DocumentViewModel : ObservableObject
     private SyntaxLanguage language;
     private Encoding encoding = new UTF8Encoding(false, true);
     public TextDocument Buffer { get; } = new();
+    public Guid Id { get; init; } = Guid.NewGuid();
     public string UntitledName { get; }
     public string? FilePath { get => path; private set { path = value; Notify(); Notify(nameof(Title)); Notify(nameof(IsMarkdown)); if (!IsMarkdown) IsPreview = false; } }
     public string Title => (FilePath is null ? UntitledName : Path.GetFileName(FilePath)) + (IsModified ? " •" : "");
@@ -70,5 +71,20 @@ public sealed class DocumentViewModel : ObservableObject
         encodingChanged = false;
         Buffer.UndoStack.MarkAsOriginalFile();
         Notify(nameof(IsModified)); Notify(nameof(Title));
+    }
+
+    public void Restore(SessionTab state, string text, Encoding restoredEncoding)
+    {
+        Buffer.Text = text; Buffer.UndoStack.ClearAll();
+        encoding = restoredEncoding; encodingChanged = false;
+        LineEnding = state.LineEnding is "\r\n" or "\n" or "\r" ? state.LineEnding : Services.FileService.DetectLineEnding(text);
+        FilePath = state.FilePath; Fingerprint = state.Fingerprint;
+        Language = Enum.IsDefined(state.Language) ? state.Language : SyntaxLanguage.Automatic;
+        CaretOffset = Math.Clamp(state.CaretOffset, 0, Buffer.TextLength);
+        VerticalOffset = double.IsFinite(state.VerticalOffset) ? Math.Max(0, state.VerticalOffset) : 0;
+        HorizontalOffset = double.IsFinite(state.HorizontalOffset) ? Math.Max(0, state.HorizontalOffset) : 0;
+        if (state.IsModified) Buffer.UndoStack.DiscardOriginalFileMarker();
+        else Buffer.UndoStack.MarkAsOriginalFile();
+        Notify(nameof(Encoding)); Notify(nameof(IsModified)); Notify(nameof(Title));
     }
 }
